@@ -1,0 +1,50 @@
+name: Template Correctness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  render-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install copier
+        run: pip install copier
+
+      - name: Render sample project
+        run: |
+          copier copy . /tmp/{{ copier__template_sample_name }} --trust --defaults \
+            -d copier__project_name_raw="Sample Project" \
+            -d copier__project_slug="sample_project" \
+            -d copier__description="Sample generated project" \
+            -d copier__author_name="Sample Author" \
+            -d copier__email="sample@example.com" \
+            -d copier__version="0.1.0" \
+            -d copier__configure_repo=false \
+            -d copier__create_repo=false \
+            -d copier__ci_provider="{{ copier__ci_provider }}" \
+            -d copier__enable_semantic_release={{ 'true' if copier__enable_semantic_release else 'false' }} \
+            -d copier__github_semantic_release_auth="{{ copier__github_semantic_release_auth }}" \
+            -d copier__enable_secret_scanning={{ 'true' if copier__enable_secret_scanning else 'false' }} \
+            -d copier__task_runner="{{ copier__task_runner }}"
+
+      - name: Validate generated project files
+        run: |
+          test -f /tmp/{{ copier__template_sample_name }}/README.md
+          test -f /tmp/{{ copier__template_sample_name }}/copier.yml
+          test -f /tmp/{{ copier__template_sample_name }}/template/{{'Taskfile.yml' if copier__task_runner == 'task' else ('justfile' if copier__task_runner == 'just' else 'Makefile')}}

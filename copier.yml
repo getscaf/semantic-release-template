@@ -1,0 +1,140 @@
+_templates_suffix: ""
+_subdirectory: template
+
+_tasks:
+  - python .scaf/post-copy.py
+
+copier__project_name_raw:
+  type: str
+  default: "My Scaf Template"
+  help: "The generated project name."
+  validator: >-
+    {% if not copier__project_name_raw.strip() %}
+      "Project name cannot be empty."
+    {% endif %}
+
+copier__project_name:
+  type: str
+  default: "{{ copier__project_name_raw | replace(\"'\", \"\") | replace('\"', '') }}"
+  when: false
+
+copier__project_slug:
+  type: str
+  default: "{{ is_project_slug if is_project_slug else copier__project_name.lower().replace(' ', '_').replace('-', '_').replace('.', '_').strip() }}"
+  help: "Python identifier-style slug."
+  validator: >-
+    {% if not copier__project_slug.isidentifier() %}
+      "'{{ copier__project_slug }}' is not a valid Python identifier."
+    {% elif copier__project_slug != copier__project_slug.lower() %}
+      "'{{ copier__project_slug }}' must be lowercase."
+    {% elif not copier__project_slug.strip() %}
+      "Project slug cannot be empty."
+    {% endif %}
+
+copier__project_dash:
+  type: str
+  default: "{{ copier__project_slug.lower().replace(' ', '-').replace('_', '-').replace('.', '-').strip() }}"
+  when: false
+
+copier__description:
+  type: str
+  default: "Template for new scaf templates"
+  help: "Short project description."
+
+copier__author_name:
+  type: str
+  default: "Template Author"
+  help: "Author name."
+
+copier__email:
+  type: str
+  default: "{{ copier__author_name.lower().replace(' ', '.') }}@example.com"
+  help: "Author email."
+
+copier__configure_repo:
+  type: bool
+  default: true
+  help: "Configure a git remote for the generated project."
+
+copier__repo_provider:
+  type: str
+  default: github
+  choices:
+    - github
+    - gitlab
+  help: "Repository provider."
+  when: "{{ copier__configure_repo }}"
+
+copier__repo_org:
+  type: str
+  default: "getscaf"
+  help: "Repository organization/group."
+  when: "{{ copier__configure_repo }}"
+
+copier__repo_name:
+  type: str
+  default: "{{ copier__project_dash }}"
+  help: "Repository name."
+  when: "{{ copier__configure_repo }}"
+
+copier__repo_url:
+  type: str
+  default: "{{ ('git@github.com:' + copier__repo_org + '/' + copier__repo_name + '.git') if (copier__configure_repo and copier__repo_provider == 'github') else (('git@gitlab.com:' + copier__repo_org + '/' + copier__repo_name + '.git') if copier__configure_repo else '') }}"
+  when: false
+
+copier__create_repo:
+  type: bool
+  default: true
+  help: "Create the repository automatically if it does not exist (gh for GitHub, glab for GitLab)."
+  when: "{{ copier__configure_repo }}"
+
+copier__repo_visibility:
+  type: str
+  default: public
+  choices:
+    - private
+    - public
+  help: "Visibility to use when creating the repository."
+  when: "{{ copier__configure_repo and copier__create_repo }}"
+
+copier__version:
+  type: str
+  default: "0.1.0"
+  help: "Initial project version."
+
+copier__ci_provider:
+  type: str
+  default: "{{ copier__repo_provider if copier__configure_repo else 'github' }}"
+  help: "CI provider to scaffold."
+  choices:
+    - github
+    - gitlab
+  when: "{{ not copier__configure_repo }}"
+
+copier__enable_semantic_release:
+  type: bool
+  default: true
+  help: "Include semantic-release config and CI release job."
+
+copier__github_semantic_release_auth:
+  type: str
+  default: github_token
+  help: "GitHub semantic-release authentication method."
+  choices:
+    - github_token
+    - github_app
+  when: "{{ copier__ci_provider == 'github' and copier__enable_semantic_release }}"
+
+copier__enable_secret_scanning:
+  type: bool
+  default: true
+  help: "Include secret scanning in CI."
+
+copier__task_runner:
+  type: str
+  default: task
+  help: "Primary local task runner."
+  choices:
+    - make
+    - task
+    - just

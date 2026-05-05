@@ -1,0 +1,14 @@
+# Changes here will be overwritten by Copier
+_commit: v1.2.0
+_src_path: ./template-starter
+copier__author_name: Six Feet Up
+copier__ci_provider: github
+copier__configure_repo: false
+copier__description: Scaf template that adds hosted semantic-release automation
+copier__email: info@sixfeetup.com
+copier__enable_secret_scanning: false
+copier__enable_semantic_release: false
+copier__project_name_raw: Semantic Release Template
+copier__project_slug: semantic_release_template
+copier__task_runner: just
+copier__version: 0.1.0

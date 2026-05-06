@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import pathlib
+import shutil
+
+CI_PROVIDER = "{{ semantic_release__ci_provider }}"
+PROJECT_ROOT = pathlib.Path.cwd()
+
+CI_FILES = {
+    "github_actions": PROJECT_ROOT / ".github" / "workflows" / "semantic-release.yml",
+    "gitlab_ci": PROJECT_ROOT / ".gitlab-ci.yml",
+    "gitea_actions": PROJECT_ROOT / ".gitea" / "workflows" / "semantic-release.yml",
+    "forgejo_actions": PROJECT_ROOT / ".forgejo" / "workflows" / "semantic-release.yml",
+}
+
+
+def remove(path: pathlib.Path) -> None:
+    if not path.exists():
+        return
+    if path.is_file() or path.is_symlink():
+        path.unlink()
+    else:
+        shutil.rmtree(path)
+
+
+def remove_empty_parents(path: pathlib.Path) -> None:
+    current = path
+    while current != PROJECT_ROOT and current.exists():
+        try:
+            current.rmdir()
+        except OSError:
+            return
+        current = current.parent
+
+
+def main() -> None:
+    keep = CI_FILES.get(CI_PROVIDER)
+
+    for ci_file in CI_FILES.values():
+        if keep is not None and ci_file == keep:
+            continue
+        remove(ci_file)
+        remove_empty_parents(ci_file.parent)
+
+    remove(PROJECT_ROOT / ".scaf")
+    print(f"semantic-release template rendered with ci_provider={CI_PROVIDER}")
+
+
+if __name__ == "__main__":
+    main()

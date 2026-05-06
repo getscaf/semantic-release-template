@@ -1,0 +1,28 @@
+name: semantic-release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - {{ semantic_release__release_branch }}
+
+jobs:
+  release:
+    name: semantic-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Release
+        env:
+          GITEA_TOKEN: ${{ "{{ secrets.GITEA_TOKEN }}" }}
+          GITEA_URL: "{{ semantic_release__effective_instance_url }}"
+        run: npx --package semantic-release --package @saithodev/semantic-release-gitea semantic-release

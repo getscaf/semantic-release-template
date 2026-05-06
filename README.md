@@ -1,35 +1,31 @@
 # Semantic Release Template
 
-Scaf template that adds hosted semantic-release automation
+A small Scaf/Copier template that adds hosted semantic-release automation to a new or existing project.
 
-This repository is a Copier template. It renders project scaffolding from the `template/` directory.
+## Supported Git Hosts
+
+- GitHub
+- GitLab
+- Codeberg
+- Gitea instances
+- Forgejo instances
+
+The template creates hosted releases by default. It does not publish npm packages and it does not install semantic-release as a local dependency.
 
 ## Use This Template
 
 ```bash
-# From a local clone
-copier copy . /path/to/new-project --trust
-
-# Or from a remote repository URL
-copier copy <template-repo-url> /path/to/new-project --trust
+scaf my-project /path/to/semantic-release-template
 ```
 
 ## What Gets Rendered
 
-- Project metadata and docs
-- CI scaffolding
-- Optional semantic-release wiring
-- Optional secret scanning
-- Task runner files (`make`, `task`, or `just`, pruned by selected option)
+- `.releaserc.json`
+- provider-specific release CI configuration, unless `docs_only` is selected
+- `docs/semantic-release.md`
 
-## Template Validation
-
-Run local render checks with:
+## Local Template Tests
 
 ```bash
-
 just test-template-render
-
 ```
-
-This repository also includes `.github/workflows/template-correctness.yaml`, which runs the same check on every push/PR (for GitHub CI).

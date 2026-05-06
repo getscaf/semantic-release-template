@@ -1,140 +1,71 @@
-_templates_suffix: ""
+_templates_suffix: ".jinja"
 _subdirectory: template
 
 _tasks:
   - python .scaf/post-copy.py
 
-copier__project_name_raw:
-  type: str
-  default: "My Scaf Template"
-  help: "The generated project name."
-  validator: >-
-    {% if not copier__project_name_raw.strip() %}
-      "Project name cannot be empty."
-    {% endif %}
-
-copier__project_name:
-  type: str
-  default: "{{ copier__project_name_raw | replace(\"'\", \"\") | replace('\"', '') }}"
-  when: false
-
-copier__project_slug:
-  type: str
-  default: "{{ is_project_slug if is_project_slug else copier__project_name.lower().replace(' ', '_').replace('-', '_').replace('.', '_').strip() }}"
-  help: "Python identifier-style slug."
-  validator: >-
-    {% if not copier__project_slug.isidentifier() %}
-      "'{{ copier__project_slug }}' is not a valid Python identifier."
-    {% elif copier__project_slug != copier__project_slug.lower() %}
-      "'{{ copier__project_slug }}' must be lowercase."
-    {% elif not copier__project_slug.strip() %}
-      "Project slug cannot be empty."
-    {% endif %}
-
-copier__project_dash:
-  type: str
-  default: "{{ copier__project_slug.lower().replace(' ', '-').replace('_', '-').replace('.', '-').strip() }}"
-  when: false
-
-copier__description:
-  type: str
-  default: "Template for new scaf templates"
-  help: "Short project description."
-
-copier__author_name:
-  type: str
-  default: "Template Author"
-  help: "Author name."
-
-copier__email:
-  type: str
-  default: "{{ copier__author_name.lower().replace(' ', '.') }}@example.com"
-  help: "Author email."
-
-copier__configure_repo:
-  type: bool
-  default: true
-  help: "Configure a git remote for the generated project."
-
-copier__repo_provider:
+semantic_release__git_host:
   type: str
   default: github
+  help: "Git hosting service where releases should be published."
   choices:
     - github
     - gitlab
-  help: "Repository provider."
-  when: "{{ copier__configure_repo }}"
+    - codeberg
+    - gitea
+    - forgejo
 
-copier__repo_org:
+semantic_release__instance_url:
   type: str
-  default: "getscaf"
-  help: "Repository organization/group."
-  when: "{{ copier__configure_repo }}"
+  default: ""
+  help: "Base URL for your Gitea or Forgejo instance, for example https://git.example.com."
+  when: "{{ semantic_release__git_host in ['gitea', 'forgejo'] }}"
+  validator: >-
+    {% if semantic_release__git_host in ['gitea', 'forgejo'] and not semantic_release__instance_url.strip() %}
+      "Instance URL is required for {{ semantic_release__git_host }}."
+    {% elif semantic_release__instance_url and not semantic_release__instance_url.startswith('http') %}
+      "Instance URL must start with http:// or https://."
+    {% endif %}
 
-copier__repo_name:
+semantic_release__effective_instance_url:
   type: str
-  default: "{{ copier__project_dash }}"
-  help: "Repository name."
-  when: "{{ copier__configure_repo }}"
-
-copier__repo_url:
-  type: str
-  default: "{{ ('git@github.com:' + copier__repo_org + '/' + copier__repo_name + '.git') if (copier__configure_repo and copier__repo_provider == 'github') else (('git@gitlab.com:' + copier__repo_org + '/' + copier__repo_name + '.git') if copier__configure_repo else '') }}"
+  default: "{{ 'https://codeberg.org' if semantic_release__git_host == 'codeberg' else semantic_release__instance_url.rstrip('/') }}"
   when: false
 
-copier__create_repo:
-  type: bool
-  default: true
-  help: "Create the repository automatically if it does not exist (gh for GitHub, glab for GitLab)."
-  when: "{{ copier__configure_repo }}"
-
-copier__repo_visibility:
+semantic_release__ci_provider:
   type: str
-  default: public
+  default: >-
+    {{
+      'github_actions' if semantic_release__git_host == 'github' else
+      'gitlab_ci' if semantic_release__git_host == 'gitlab' else
+      'gitea_actions' if semantic_release__git_host == 'gitea' else
+      'forgejo_actions' if semantic_release__git_host == 'forgejo' else
+      'docs_only'
+    }}
+  help: "CI configuration to generate. Choose docs_only if you will wire the release command into existing CI manually."
   choices:
-    - private
-    - public
-  help: "Visibility to use when creating the repository."
-  when: "{{ copier__configure_repo and copier__create_repo }}"
+    - github_actions
+    - gitlab_ci
+    - gitea_actions
+    - forgejo_actions
+    - docs_only
+  validator: >-
+    {% set valid = {
+      'github': ['github_actions', 'docs_only'],
+      'gitlab': ['gitlab_ci', 'docs_only'],
+      'codeberg': ['forgejo_actions', 'docs_only'],
+      'gitea': ['gitea_actions', 'docs_only'],
+      'forgejo': ['forgejo_actions', 'docs_only']
+    } %}
+    {% if semantic_release__ci_provider not in valid[semantic_release__git_host] %}
+      "{{ semantic_release__ci_provider }} is not a supported CI provider for {{ semantic_release__git_host }}."
+    {% endif %}
 
-copier__version:
+semantic_release__release_branch:
   type: str
-  default: "0.1.0"
-  help: "Initial project version."
-
-copier__ci_provider:
-  type: str
-  default: "{{ copier__repo_provider if copier__configure_repo else 'github' }}"
-  help: "CI provider to scaffold."
-  choices:
-    - github
-    - gitlab
-  when: "{{ not copier__configure_repo }}"
-
-copier__enable_semantic_release:
-  type: bool
-  default: true
-  help: "Include semantic-release config and CI release job."
-
-copier__github_semantic_release_auth:
-  type: str
-  default: github_token
-  help: "GitHub semantic-release authentication method."
-  choices:
-    - github_token
-    - github_app
-  when: "{{ copier__ci_provider == 'github' and copier__enable_semantic_release }}"
-
-copier__enable_secret_scanning:
-  type: bool
-  default: true
-  help: "Include secret scanning in CI."
-
-copier__task_runner:
-  type: str
-  default: task
-  help: "Primary local task runner."
-  choices:
-    - make
-    - task
-    - just
+  default: main
+  help: "Branch semantic-release should publish from."
+  validator: >-
+    {% if not semantic_release__release_branch.strip() %}
+      "Release branch cannot be empty."
+    {% endif %}

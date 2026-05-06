@@ -9,7 +9,7 @@ render_case() {
   local out_dir
   out_dir="$(mktemp -d "/tmp/semantic-release-template-${name}-XXXXXX")"
 
-  copier copy "$ROOT_DIR" "$out_dir" --trust --defaults "$@"
+  copier copy "$ROOT_DIR" "$out_dir" --trust --defaults "$@" >&2
 
   test -f "$out_dir/.releaserc.json"
   test -f "$out_dir/docs/semantic-release.md"

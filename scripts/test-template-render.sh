@@ -1,88 +1,128 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-copier_ci_provider="github"
-copier_task_runner="just"
-copier_enable_semantic_release="false"
-copier_enable_secret_scanning="false"
-copier_github_semantic_release_auth="github_token"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-out_dir="$(mktemp -d /tmp/scaf-template-render-XXXXXX)"
-trap 'rm -rf "$out_dir"' EXIT
+render_case() {
+  local name="$1"
+  shift
+  local out_dir
+  out_dir="$(mktemp -d "/tmp/semantic-release-template-${name}-XXXXXX")"
 
-copy_cmd=(
-  copier copy . "$out_dir" --trust --defaults
-  -d "copier__project_name_raw=Sample Project"
-  -d "copier__project_slug=sample_project"
-  -d "copier__description=Sample generated project"
-  -d "copier__author_name=Sample Author"
-  -d "copier__email=sample@example.com"
-  -d "copier__version=0.1.0"
-  -d "copier__configure_repo=false"
-  -d "copier__create_repo=false"
-  -d "copier__ci_provider=$copier_ci_provider"
-  -d "copier__enable_semantic_release=$copier_enable_semantic_release"
-  -d "copier__enable_secret_scanning=$copier_enable_secret_scanning"
-  -d "copier__task_runner=$copier_task_runner"
-)
+  copier copy "$ROOT_DIR" "$out_dir" --trust --defaults "$@"
 
-if [[ "$copier_ci_provider" == "github" && "$copier_enable_semantic_release" == "true" ]]; then
-  copy_cmd+=(-d "copier__github_semantic_release_auth=$copier_github_semantic_release_auth")
-fi
+  test -f "$out_dir/.releaserc.json"
+  test -f "$out_dir/docs/semantic-release.md"
+  test -f "$out_dir/.copier-answers.yml"
+  ! grep -Fq '@semantic-release/npm' "$out_dir/.releaserc.json"
 
-"${copy_cmd[@]}"
+  echo "$out_dir"
+}
 
-test -f "$out_dir/README.md"
-test -f "$out_dir/LICENSE"
-test -f "$out_dir/.copier-answers.yml"
-test ! -f "$out_dir/{{_copier_conf.answers_file}}"
-
-if [[ "$copier_task_runner" == "make" ]]; then
-  test -f "$out_dir/Makefile"
-  test ! -f "$out_dir/Taskfile.yml"
-  test ! -f "$out_dir/justfile"
-elif [[ "$copier_task_runner" == "task" ]]; then
-  test -f "$out_dir/Taskfile.yml"
-  test ! -f "$out_dir/Makefile"
-  test ! -f "$out_dir/justfile"
-else
-  test -f "$out_dir/justfile"
-  test ! -f "$out_dir/Makefile"
-  test ! -f "$out_dir/Taskfile.yml"
-fi
-
-if [[ "$copier_ci_provider" == "github" ]]; then
-  test -f "$out_dir/.github/workflows/template-correctness.yaml"
+assert_only_github_ci() {
+  local out_dir="$1"
+  test -f "$out_dir/.github/workflows/semantic-release.yml"
   test ! -f "$out_dir/.gitlab-ci.yml"
-else
+  test ! -d "$out_dir/.gitea"
+  test ! -d "$out_dir/.forgejo"
+}
+
+assert_only_gitlab_ci() {
+  local out_dir="$1"
   test -f "$out_dir/.gitlab-ci.yml"
   test ! -d "$out_dir/.github"
-fi
+  test ! -d "$out_dir/.gitea"
+  test ! -d "$out_dir/.forgejo"
+}
 
-if [[ "$copier_enable_semantic_release" == "true" ]]; then
-  test -f "$out_dir/package.json"
-  test -f "$out_dir/dependencies-init.txt"
-  test -f "$out_dir/dependencies-dev-init.txt"
-  test -f "$out_dir/.releaserc.json"
-  test -f "$out_dir/CHANGELOG.md"
-else
-  test ! -f "$out_dir/package.json"
-  test ! -f "$out_dir/dependencies-init.txt"
-  test ! -f "$out_dir/dependencies-dev-init.txt"
-  test ! -f "$out_dir/.releaserc.json"
-  test ! -f "$out_dir/CHANGELOG.md"
-fi
+assert_only_gitea_ci() {
+  local out_dir="$1"
+  test -f "$out_dir/.gitea/workflows/semantic-release.yml"
+  test ! -d "$out_dir/.github"
+  test ! -f "$out_dir/.gitlab-ci.yml"
+  test ! -d "$out_dir/.forgejo"
+}
 
-if [[ "$copier_ci_provider" == "github" && "$copier_enable_semantic_release" == "true" ]]; then
-  test -f "$out_dir/.github/workflows/semantic-release.yaml"
-  test -f "$out_dir/.github/workflows/semantic-pull-request.yaml"
-else
-  test ! -f "$out_dir/.github/workflows/semantic-release.yaml"
-  test ! -f "$out_dir/.github/workflows/semantic-pull-request.yaml"
-fi
+assert_only_forgejo_ci() {
+  local out_dir="$1"
+  test -f "$out_dir/.forgejo/workflows/semantic-release.yml"
+  test ! -d "$out_dir/.github"
+  test ! -f "$out_dir/.gitlab-ci.yml"
+  test ! -d "$out_dir/.gitea"
+}
 
-if [[ "$copier_ci_provider" == "github" && "$copier_enable_secret_scanning" == "true" ]]; then
-  test -f "$out_dir/.github/workflows/secret-scan.yaml"
-else
-  test ! -f "$out_dir/.github/workflows/secret-scan.yaml"
-fi
+assert_docs_only_ci() {
+  local out_dir="$1"
+  test ! -d "$out_dir/.github"
+  test ! -f "$out_dir/.gitlab-ci.yml"
+  test ! -d "$out_dir/.gitea"
+  test ! -d "$out_dir/.forgejo"
+}
+
+main() {
+  local github_dir
+  github_dir="$(render_case github \
+    -d semantic_release__git_host=github \
+    -d semantic_release__release_branch=main)"
+  assert_only_github_ci "$github_dir"
+  grep -Fq '"@semantic-release/github"' "$github_dir/.releaserc.json"
+  grep -Fq 'npx semantic-release' "$github_dir/.github/workflows/semantic-release.yml"
+  rm -rf "$github_dir"
+
+  local gitlab_dir
+  gitlab_dir="$(render_case gitlab \
+    -d semantic_release__git_host=gitlab \
+    -d semantic_release__release_branch=main)"
+  assert_only_gitlab_ci "$gitlab_dir"
+  grep -Fq '"@semantic-release/gitlab"' "$gitlab_dir/.releaserc.json"
+  grep -Fq '@semantic-release/gitlab' "$gitlab_dir/.gitlab-ci.yml"
+  rm -rf "$gitlab_dir"
+
+  local codeberg_dir
+  codeberg_dir="$(render_case codeberg \
+    -d semantic_release__git_host=codeberg \
+    -d semantic_release__ci_provider=docs_only \
+    -d semantic_release__release_branch=main)"
+  assert_docs_only_ci "$codeberg_dir"
+  grep -Fq '"@saithodev/semantic-release-gitea"' "$codeberg_dir/.releaserc.json"
+  grep -Fq '"giteaUrl": "https://codeberg.org"' "$codeberg_dir/.releaserc.json"
+  rm -rf "$codeberg_dir"
+
+  local gitea_dir
+  gitea_dir="$(render_case gitea \
+    -d semantic_release__git_host=gitea \
+    -d semantic_release__instance_url=https://git.example.com \
+    -d semantic_release__release_branch=release)"
+  assert_only_gitea_ci "$gitea_dir"
+  grep -Fq '"giteaUrl": "https://git.example.com"' "$gitea_dir/.releaserc.json"
+  grep -Fq 'branches": ["release"]' "$gitea_dir/.releaserc.json"
+  rm -rf "$gitea_dir"
+
+  local forgejo_dir
+  forgejo_dir="$(render_case forgejo \
+    -d semantic_release__git_host=forgejo \
+    -d semantic_release__instance_url=https://forgejo.example.com \
+    -d semantic_release__release_branch=main)"
+  assert_only_forgejo_ci "$forgejo_dir"
+  grep -Fq '"giteaUrl": "https://forgejo.example.com"' "$forgejo_dir/.releaserc.json"
+  grep -Fq '@saithodev/semantic-release-gitea' "$forgejo_dir/.forgejo/workflows/semantic-release.yml"
+  rm -rf "$forgejo_dir"
+
+  local invalid_dir
+  invalid_dir="$(mktemp -d /tmp/semantic-release-template-invalid-XXXXXX)"
+  if copier copy "$ROOT_DIR" "$invalid_dir" --trust --defaults \
+    -d semantic_release__git_host=gitea; then
+    echo "Expected Gitea render without instance_url to fail" >&2
+    exit 1
+  fi
+  rm -rf "$invalid_dir"
+
+  if grep -Riq 'bitbucket' "$ROOT_DIR/copier.yml" "$ROOT_DIR/template"; then
+    echo "Bitbucket should not be present in the MVP template" >&2
+    exit 1
+  fi
+
+  echo "All semantic-release template render tests passed."
+}
+
+main "$@"

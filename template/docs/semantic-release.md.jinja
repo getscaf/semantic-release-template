@@ -27,9 +27,13 @@ Selected host: `{{ semantic_release__git_host }}`
 {% if semantic_release__git_host == "github" %}
 ## Required GitHub Token
 
+{% if semantic_release__ci_provider == "docs_only" %}
+No GitHub Actions workflow was generated. When you wire semantic-release into CI, expose either `GITHUB_TOKEN` or `GH_TOKEN` to the release command.
+{% else %}
 The generated workflow uses the built-in `GITHUB_TOKEN` secret by default.
 
 If your project needs a personal access token instead, define `GH_TOKEN` in the repository secrets and update `.github/workflows/semantic-release.yml` to pass `GH_TOKEN` instead of `GITHUB_TOKEN`.
+{% endif %}
 {% elif semantic_release__git_host == "gitlab" %}
 ## Required GitLab Token
 
@@ -38,7 +42,11 @@ Create a GitLab token with permissions to push tags and create releases. Add it 
 - `GL_TOKEN`
 - `GITLAB_TOKEN`
 
+{% if semantic_release__ci_provider == "docs_only" %}
+No GitLab CI file was generated. Make one of those variables available wherever you run semantic-release.
+{% else %}
 The generated `.gitlab-ci.yml` expects one of those variables to be available.
+{% endif %}
 {% else %}
 ## Required Gitea-compatible Token
 
@@ -52,7 +60,11 @@ Also provide the instance URL:
 GITEA_URL={{ semantic_release__effective_instance_url }}
 ```
 
+{% if semantic_release__ci_provider == "docs_only" %}
+No Actions workflow was generated. Make `GITEA_TOKEN` and `GITEA_URL` available wherever you run semantic-release.
+{% else %}
 The generated workflow sets `GITEA_URL` directly. You may move it to a secret or variable if your CI policy requires that.
+{% endif %}
 {% endif %}
 
 ## CI Execution

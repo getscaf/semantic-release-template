@@ -23,7 +23,7 @@ semantic_release__instance_url:
   validator: >-
     {% if semantic_release__git_host in ['gitea', 'forgejo'] and not semantic_release__instance_url.strip() %}
       "Instance URL is required for {{ semantic_release__git_host }}."
-    {% elif semantic_release__instance_url and not semantic_release__instance_url.startswith('http') %}
+    {% elif semantic_release__instance_url and not (semantic_release__instance_url.startswith('http://') or semantic_release__instance_url.startswith('https://')) %}
       "Instance URL must start with http:// or https://."
     {% endif %}
 

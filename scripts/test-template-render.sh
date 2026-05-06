@@ -14,6 +14,7 @@ render_case() {
   test -f "$out_dir/.releaserc.json"
   test -f "$out_dir/docs/semantic-release.md"
   test -f "$out_dir/.copier-answers.yml"
+  test ! -d "$out_dir/.scaf"
   ! grep -Fq '@semantic-release/npm' "$out_dir/.releaserc.json"
 
   echo "$out_dir"
@@ -109,10 +110,27 @@ main() {
   rm -rf "$forgejo_dir"
 
   local invalid_dir
-  invalid_dir="$(mktemp -d /tmp/semantic-release-template-invalid-XXXXXX)"
+  invalid_dir="$(mktemp -d /tmp/semantic-release-template-invalid-gitea-XXXXXX)"
   if copier copy "$ROOT_DIR" "$invalid_dir" --trust --defaults \
-    -d semantic_release__git_host=gitea; then
+    -d semantic_release__git_host=gitea >/dev/null 2>&1; then
     echo "Expected Gitea render without instance_url to fail" >&2
+    exit 1
+  fi
+  rm -rf "$invalid_dir"
+
+  invalid_dir="$(mktemp -d /tmp/semantic-release-template-invalid-forgejo-XXXXXX)"
+  if copier copy "$ROOT_DIR" "$invalid_dir" --trust --defaults \
+    -d semantic_release__git_host=forgejo >/dev/null 2>&1; then
+    echo "Expected Forgejo render without instance_url to fail" >&2
+    exit 1
+  fi
+  rm -rf "$invalid_dir"
+
+  invalid_dir="$(mktemp -d /tmp/semantic-release-template-invalid-url-XXXXXX)"
+  if copier copy "$ROOT_DIR" "$invalid_dir" --trust --defaults \
+    -d semantic_release__git_host=gitea \
+    -d semantic_release__instance_url=httpx://git.example.com >/dev/null 2>&1; then
+    echo "Expected invalid instance_url scheme to fail" >&2
     exit 1
   fi
   rm -rf "$invalid_dir"

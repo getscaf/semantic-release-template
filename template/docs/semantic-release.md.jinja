@@ -1,0 +1,86 @@
+# Semantic Release Setup
+
+This project is configured for hosted releases with semantic-release.
+
+## Release Branch
+
+semantic-release publishes from:
+
+```text
+{{ semantic_release__release_branch }}
+```
+
+Protect this branch so only reviewed commits can trigger releases.
+
+## Commit Format
+
+semantic-release analyzes Conventional Commits:
+
+- `fix: message` creates a patch release.
+- `feat: message` creates a minor release.
+- `feat!: message` or a commit body with `BREAKING CHANGE:` creates a major release.
+
+## Git Host
+
+Selected host: `{{ semantic_release__git_host }}`
+
+{% if semantic_release__git_host == "github" %}
+## Required GitHub Token
+
+The generated workflow uses the built-in `GITHUB_TOKEN` secret by default.
+
+If your project needs a personal access token instead, define `GH_TOKEN` in the repository secrets and update `.github/workflows/semantic-release.yml` to pass `GH_TOKEN` instead of `GITHUB_TOKEN`.
+{% elif semantic_release__git_host == "gitlab" %}
+## Required GitLab Token
+
+Create a GitLab token with permissions to push tags and create releases. Add it to CI/CD variables as one of:
+
+- `GL_TOKEN`
+- `GITLAB_TOKEN`
+
+The generated `.gitlab-ci.yml` expects one of those variables to be available.
+{% else %}
+## Required Gitea-compatible Token
+
+Create an API token for your {{ semantic_release__git_host }} account with permission to push tags and create releases. Add it to CI secrets as:
+
+- `GITEA_TOKEN`
+
+Also provide the instance URL:
+
+```text
+GITEA_URL={{ semantic_release__effective_instance_url }}
+```
+
+The generated workflow sets `GITEA_URL` directly. You may move it to a secret or variable if your CI policy requires that.
+{% endif %}
+
+## CI Execution
+
+{% if semantic_release__ci_provider == "github_actions" %}
+GitHub Actions workflow: `.github/workflows/semantic-release.yml`
+{% elif semantic_release__ci_provider == "gitlab_ci" %}
+GitLab CI file: `.gitlab-ci.yml`
+{% elif semantic_release__ci_provider == "gitea_actions" %}
+Gitea Actions workflow: `.gitea/workflows/semantic-release.yml`
+{% elif semantic_release__ci_provider == "forgejo_actions" %}
+Forgejo Actions workflow: `.forgejo/workflows/semantic-release.yml`
+{% else %}
+No CI file was generated. Wire the release command below into your existing CI after tests pass.
+{% endif %}
+
+Release command:
+
+```bash
+{% if semantic_release__git_host == "github" %}npx semantic-release{% elif semantic_release__git_host == "gitlab" %}npx --package semantic-release --package @semantic-release/gitlab semantic-release{% else %}npx --package semantic-release --package @saithodev/semantic-release-gitea semantic-release{% endif %}
+```
+
+## Existing Projects
+
+This template generates full CI files when a CI provider is selected. If your project already has CI configuration, let Copier show conflicts and merge the release job manually.
+
+## What This Template Does Not Do
+
+- It does not publish npm packages.
+- It does not install semantic-release in `package.json`.
+- It does not create repositories or configure Git remotes.

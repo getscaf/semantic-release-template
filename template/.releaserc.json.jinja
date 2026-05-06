@@ -1,0 +1,15 @@
+{
+  "branches": ["{{ semantic_release__release_branch }}"],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator"{% if semantic_release__git_host == "github" %},
+    "@semantic-release/github"{% elif semantic_release__git_host == "gitlab" %},
+    "@semantic-release/gitlab"{% else %},
+    [
+      "@saithodev/semantic-release-gitea",
+      {
+        "giteaUrl": "{{ semantic_release__effective_instance_url }}"
+      }
+    ]{% endif %}
+  ]
+}

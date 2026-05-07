@@ -9,7 +9,7 @@ render_case() {
   local out_dir
   out_dir="$(mktemp -d "/tmp/semantic-release-template-${name}-XXXXXX")"
 
-  copier copy "$ROOT_DIR" "$out_dir" --trust --defaults "$@" >&2
+  copier copy "$ROOT_DIR" "$out_dir" --trust --defaults --vcs-ref=HEAD "$@" >&2
 
   test -f "$out_dir/.releaserc.json"
   test -f "$out_dir/docs/semantic-release.md"
@@ -61,6 +61,50 @@ assert_docs_only_ci() {
   test ! -d "$out_dir/.forgejo"
 }
 
+is_base_semantic_release_plugin() {
+  local package="$1"
+
+  case "$package" in
+    @semantic-release/commit-analyzer|\
+@semantic-release/release-notes-generator|\
+@semantic-release/github|\
+@semantic-release/npm)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+assert_command_installs_package() {
+  local command_file="$1"
+  local package="$2"
+
+  if ! grep -Fq -- "--package $package" "$command_file"; then
+    echo "Missing --package $package in $command_file" >&2
+    exit 1
+  fi
+}
+
+assert_release_command_installs_external_packages() {
+  local out_dir="$1"
+  local command_file="$2"
+  local config_file="$out_dir/.releaserc.json"
+
+  while IFS= read -r package; do
+    if is_base_semantic_release_plugin "$package"; then
+      continue
+    fi
+
+    assert_command_installs_package "$command_file" "$package"
+  done < <(grep -oE '"@[A-Za-z0-9._-]+/[^"[:space:]]+"' "$config_file" | tr -d '"' | sort -u)
+
+  if grep -Eq '"preset"[[:space:]]*:[[:space:]]*"conventionalcommits"' "$config_file"; then
+    assert_command_installs_package "$command_file" "conventional-changelog-conventionalcommits"
+  fi
+}
+
 main() {
   local github_dir
   github_dir="$(render_case github \
@@ -69,6 +113,7 @@ main() {
   assert_only_github_ci "$github_dir"
   grep -Fq '"@semantic-release/github"' "$github_dir/.releaserc.json"
   grep -Fq 'npx semantic-release' "$github_dir/.github/workflows/semantic-release.yml"
+  assert_release_command_installs_external_packages "$github_dir" "$github_dir/.github/workflows/semantic-release.yml"
   rm -rf "$github_dir"
 
   local gitlab_dir
@@ -77,7 +122,7 @@ main() {
     -d semantic_release__release_branch=main)"
   assert_only_gitlab_ci "$gitlab_dir"
   grep -Fq '"@semantic-release/gitlab"' "$gitlab_dir/.releaserc.json"
-  grep -Fq '@semantic-release/gitlab' "$gitlab_dir/.gitlab-ci.yml"
+  assert_release_command_installs_external_packages "$gitlab_dir" "$gitlab_dir/.gitlab-ci.yml"
   rm -rf "$gitlab_dir"
 
   local codeberg_dir
@@ -88,6 +133,7 @@ main() {
   assert_docs_only_ci "$codeberg_dir"
   grep -Fq '"@saithodev/semantic-release-gitea"' "$codeberg_dir/.releaserc.json"
   grep -Fq '"giteaUrl": "https://codeberg.org"' "$codeberg_dir/.releaserc.json"
+  assert_release_command_installs_external_packages "$codeberg_dir" "$codeberg_dir/docs/semantic-release.md"
   rm -rf "$codeberg_dir"
 
   local gitea_dir
@@ -98,6 +144,7 @@ main() {
   assert_only_gitea_ci "$gitea_dir"
   grep -Fq '"giteaUrl": "https://git.example.com"' "$gitea_dir/.releaserc.json"
   grep -Fq 'branches": ["release"]' "$gitea_dir/.releaserc.json"
+  assert_release_command_installs_external_packages "$gitea_dir" "$gitea_dir/.gitea/workflows/semantic-release.yml"
   rm -rf "$gitea_dir"
 
   local forgejo_dir
@@ -107,7 +154,7 @@ main() {
     -d semantic_release__release_branch=main)"
   assert_only_forgejo_ci "$forgejo_dir"
   grep -Fq '"giteaUrl": "https://forgejo.example.com"' "$forgejo_dir/.releaserc.json"
-  grep -Fq '@saithodev/semantic-release-gitea' "$forgejo_dir/.forgejo/workflows/semantic-release.yml"
+  assert_release_command_installs_external_packages "$forgejo_dir" "$forgejo_dir/.forgejo/workflows/semantic-release.yml"
   rm -rf "$forgejo_dir"
 
   local invalid_dir

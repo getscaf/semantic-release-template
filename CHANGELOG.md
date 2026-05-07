@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/getscaf/semantic-release-template/compare/v1.0.0...v1.1.0) (2026-05-07)
+
+### Features
+
+* test external semantic-release plugin packages ([09f5636](https://github.com/getscaf/semantic-release-template/commit/09f56361158c3da48e43590c2b5d15d1a0b29ad0))
+
 ## 1.0.0 (2026-05-07)
 
 ### Features

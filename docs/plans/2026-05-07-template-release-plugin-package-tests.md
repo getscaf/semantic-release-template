@@ -1,7 +1,5 @@
 # Template Release Plugin Package Tests Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Make the template correctness test fail when rendered semantic-release CI/docs commands omit `npx --package` entries required by rendered external plugins or presets.
 
 **Architecture:** Keep the existing Bash render-test harness and add one focused assertion helper that compares rendered `.releaserc.json` against a rendered command source file. The helper uses an allowlist for plugins bundled with base `semantic-release`, requires only outside packages, and is invoked for every rendered CI/docs variant.

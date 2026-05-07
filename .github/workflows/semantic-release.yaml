@@ -30,7 +30,13 @@ jobs:
         with:
           node-version: "lts/*"
 
-      - run: npx semantic-release
+      - run: >
+          npx --yes
+          --package semantic-release
+          --package @semantic-release/changelog
+          --package @semantic-release/git
+          --package conventional-changelog-conventionalcommits
+          semantic-release
         env:
 
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}

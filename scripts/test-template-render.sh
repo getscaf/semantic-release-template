@@ -15,7 +15,8 @@ render_case() {
   test -f "$out_dir/docs/semantic-release.md"
   test -f "$out_dir/.copier-answers.yml"
   test ! -d "$out_dir/.scaf"
-  ! grep -Fq '@semantic-release/npm' "$out_dir/.releaserc.json"
+  local npm_plugin='@semantic-release/'npm
+  ! grep -Fq "$npm_plugin" "$out_dir/.releaserc.json"
 
   echo "$out_dir"
 }
